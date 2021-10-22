@@ -3,7 +3,6 @@ local M = {}
 
 
 --#region Constants
-local match = string.match
 local call = remote.call
 local anchor = {gui = defines.relative_gui_type.controller_gui, position = defines.relative_gui_position.top}
 --#endregion
@@ -43,26 +42,20 @@ local function on_player_created(event)
 	create_relative_gui(game.get_player(event.player_index))
 end
 
-local GUIS = {
-	MUI_money = function(element, player)
-		player.print("WIP")
-	end
-}
 local function on_gui_click(event)
-	local player = game.get_player(event.player_index)
-	local element = event.element
-	if not match(element.name, "^MUI_") then return end
-
-	local f = GUIS[element.name]
-	if f then f(element, player) end
+	if event.element.name == "MUI_money" then
+		game.get_player(event.player_index).print("WIP")
+	end
 end
 
 local function check_GUIs()
 	local forces_money = call("EasyAPI", "get_forces_money")
-	local players_money = call("EasyAPI", "get_players_money")
+	local players_money = call("EasyAPI", "get_online_players_money")
 	for _, force in pairs(game.forces) do
 		local force_money = tostring(forces_money[force.index] or "NaN")
-		for _, player in pairs(force.connected_players) do
+		local online_players = force.connected_players
+		for i=1, #online_players do
+			local player = online_players[i]
 			if player.opened_self then
 				local table = player.gui.relative.money_frame.content.table
 				table.player_balance.caption = tostring(players_money[player.index] or "NaN")
@@ -72,19 +65,13 @@ local function check_GUIs()
 	end
 end
 
-local mod_settings = {
-	["MUI_update-tick"] = function(value)
+local function on_runtime_mod_setting_changed(event)
+	if event.setting == "MUI_update-tick" then
+		local value = settings.global[event.setting].value
 		script.on_nth_tick(update_tick, nil)
 		update_tick = value
 		script.on_nth_tick(value, check_GUIs)
 	end
-}
-local function on_runtime_mod_setting_changed(event)
-	if event.setting_type ~= "runtime-global" then return end
-	if not match(event.setting, "^MUI_") then return end
-
-	local f = mod_settings[event.setting]
-	if f then f(settings.global[event.setting].value) end
 end
 
 --#endregion
