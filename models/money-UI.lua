@@ -43,8 +43,22 @@ local function on_player_created(event)
 end
 
 local function on_gui_click(event)
-	if event.element.name == "MUI_money" then
-		game.get_player(event.player_index).print("WIP")
+	if event.element.name ~= "MUI_money" then return end
+
+	local table = event.element.parent.table
+	local player_index = event.player_index
+	local player_money = call("EasyAPI", "get_online_player_money", player_index)
+	if player_money then
+		table.player_balance.caption = tostring(player_money)
+	else
+		table.player_balance.caption = "NaN"
+	end
+	local force_index = game.get_player(event.player_index).force.index
+	local force_money = call("EasyAPI", "get_force_money", force_index)
+	if force_money then
+		table.force_balance.caption = tostring(force_money)
+	else
+		table.force_balance.caption = "NaN"
 	end
 end
 
