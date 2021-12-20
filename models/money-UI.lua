@@ -70,6 +70,7 @@ local function on_gui_opened(event)
 
 	local player = game.get_player(event.player_index)
 	if player.opened_self then
+		-- TODO: improve (update GUI)
 		local gui = player.gui.relative.money_frame.content.table
 		opened_money_UI[player.index] = {
 			gui.player_balance,
@@ -117,7 +118,7 @@ local function check_GUIs()
 
 	for player_index, data in pairs(opened_money_UI) do
 		data[1].caption = tostring(players_money[player_index] or "NaN")
-		data[2].caption = tostring(forces_money[data[3]] or "NaN")
+		data[2].caption = tostring(forces_money[data[3]] or "NaN") -- TODO: optimize
 	end
 end
 
@@ -186,11 +187,13 @@ M.events = {
 	[defines.events.on_player_changed_force] = function(event)
 		pcall(on_player_changed_force, event)
 	end,
+	[defines.events.on_player_removed] = function(event)
+		opened_money_UI[event.player_index] = nil
+	end,
 	[defines.events.on_player_left_game] = function(event)
 		opened_money_UI[event.player_index] = nil
 	end,
 	[defines.events.on_player_joined_game] = function()
-		-- TODO: improve
 		if #game.connected_players == 1 then
 			mod_data.opened_money_UI = {}
 			opened_money_UI = mod_data.opened_money_UI
