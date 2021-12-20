@@ -6,8 +6,12 @@ local M = {}
 ---@class mod_data
 local mod_data
 
+--- {[player index] = {GuiElement, GuiElement, force index}}
 ---@class opened_money_UI
----@type table
+---@type table<number, table>
+---@field [1] GuiElement #player_balance
+---@field [2] GuiElement #force_balance
+---@field [3] number #Force index
 local opened_money_UI
 --#endregion
 
@@ -112,9 +116,8 @@ local function check_GUIs()
 	local players_money = call("EasyAPI", "get_online_players_money")
 
 	for player_index, data in pairs(opened_money_UI) do
-		local force_money = tostring(forces_money[data[3]] or "NaN")
 		data[1].caption = tostring(players_money[player_index] or "NaN")
-		data[2].caption = force_money
+		data[2].caption = tostring(forces_money[data[3]] or "NaN")
 	end
 end
 
