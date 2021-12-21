@@ -138,7 +138,9 @@ end
 
 local function link_data()
 	mod_data = global.MUI
-	opened_money_UI = mod_data.opened_money_UI
+	if mod_data then
+		opened_money_UI = mod_data.opened_money_UI
+	end
 end
 
 local function update_global_data()
