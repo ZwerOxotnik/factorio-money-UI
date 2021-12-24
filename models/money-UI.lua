@@ -66,8 +66,6 @@ local function on_player_changed_force(event)
 end
 
 local function on_gui_opened(event)
-	if event.gui_type ~= controller_type then return end
-
 	local player = game.get_player(event.player_index)
 	if player.opened_self then
 		-- TODO: improve (update GUI)
@@ -81,8 +79,6 @@ local function on_gui_opened(event)
 end
 
 local function on_gui_closed(event)
-	if event.gui_type ~= controller_type then return end
-
 	local player = game.get_player(event.player_index)
 	if not player.opened_self then
 		opened_money_UI[player.index] = nil
@@ -123,12 +119,14 @@ local function check_GUIs()
 end
 
 local function on_runtime_mod_setting_changed(event)
-	if event.setting == "MUI_update-tick" then
-		local value = settings.global[event.setting].value
-		script.on_nth_tick(update_tick, nil)
-		update_tick = value
-		script.on_nth_tick(value, check_GUIs)
-	end
+	if event.setting ~= "MUI_update-tick" then return end
+
+	local value = settings.global["MUI_update-tick"].value
+	script.on_nth_tick(update_tick, nil)
+	M.on_nth_tick[update_tick] = nil
+	update_tick = value
+	script.on_nth_tick(value, check_GUIs)
+	M.on_nth_tick[update_tick] = check_GUIs
 end
 
 --#endregion
@@ -202,9 +200,11 @@ M.events = {
 		end
 	end,
 	[defines.events.on_gui_opened] = function(event)
+		if event.gui_type ~= controller_type then return end
 		pcall(on_gui_opened, event)
 	end,
 	[defines.events.on_gui_closed] = function(event)
+		if event.gui_type ~= controller_type then return end
 		pcall(on_gui_closed, event)
 	end,
 	[defines.events.on_gui_click] = function(event)
