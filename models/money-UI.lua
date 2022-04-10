@@ -17,6 +17,7 @@ local opened_money_UI
 
 
 --#region Constants
+local tostring = tostring
 local call = remote.call
 local money_anchor = {gui = defines.relative_gui_type.controller_gui, position = defines.relative_gui_position.top}
 local controller_type = defines.gui_type.controller
@@ -54,55 +55,65 @@ end
 --#region Functions of events
 
 local function on_player_created(event)
-	create_relative_gui(game.get_player(event.player_index))
+	local player = game.get_player(event.player_index)
+	if not (player and player.valid) then return end
+	create_relative_gui(player)
 end
 
 local function on_player_changed_force(event)
-	local player_data = opened_money_UI[event.player_index]
+	local player_index = event.player_index
+	local player_data = opened_money_UI[player_index]
 	if player_data == nil then return end
+	local player = game.get_player(player_index)
+	if not (player and player.valid) then return end
 
-	local force_index = game.get_player(event.player_index).force.index
-	player_data[3] = force_index
+	player_data[3] = player.force.index
 end
 
 local function on_gui_opened(event)
-	local player = game.get_player(event.player_index)
-	if player.opened_self then
-		-- TODO: improve (update GUI)
-		local gui = player.gui.relative.money_frame.content.table
-		opened_money_UI[player.index] = {
-			gui.player_balance,
-			gui.force_balance,
-			player.force.index
-		}
-	end
+	if event.gui_type ~= controller_type then return end
+	local player_index = event.player_index
+	local player = game.get_player(player_index)
+	if not (player and player.valid) then return end
+	if not player.opened_self then return end
+
+	-- TODO: improve (update GUI)
+	local gui = player.gui.relative.money_frame.content.table
+	opened_money_UI[player_index] = {
+		gui.player_balance,
+		gui.force_balance,
+		player.force.index
+	}
 end
 
 local function on_gui_closed(event)
-	local player = game.get_player(event.player_index)
-	if not player.opened_self then
-		opened_money_UI[player.index] = nil
-	end
+	if event.gui_type ~= controller_type then return end
+	local player_index = event.player_index
+	local player = game.get_player(player_index)
+	if not (player and player.valid) then return end
+	if player.opened_self then return end
+	opened_money_UI[player_index] = nil
 end
 
--- Perhaps, I should refactor it
 local function on_gui_click(event)
-	if event.element.name ~= "MUI_money" then return end
+	local element = event.element
+	if not (element and element.valid) then return end
+	if element.name ~= "MUI_money" then return end
 
-	local table = event.element.parent.table
+	local table_elem = element.parent.table
 	local player_index = event.player_index
 	local player_money = call("EasyAPI", "get_online_player_money", player_index)
 	if player_money then
-		table.player_balance.caption = tostring(player_money)
+		table_elem.player_balance.caption = tostring(player_money)
 	else
-		table.player_balance.caption = "NaN"
+		table_elem.player_balance.caption = "NaN"
 	end
-	local force_index = game.get_player(player_index).force.index
-	local force_money = call("EasyAPI", "get_force_money", force_index)
+	local player = game.get_player(player_index)
+	local force_money = call("EasyAPI", "get_force_money", player.force.index)
 	if force_money then
-		table.force_balance.caption = tostring(force_money)
+		table_elem.force_balance.caption = tostring(force_money)
 	else
-		table.force_balance.caption = "NaN"
+		table_elem.force_balance.caption = "NaN"
 	end
 end
 
@@ -181,12 +192,8 @@ M.add_remote_interface = add_remote_interface
 
 
 M.events = {
-	[defines.events.on_player_created] = function(event)
-		pcall(on_player_created, event)
-	end,
-	[defines.events.on_player_changed_force] = function(event)
-		pcall(on_player_changed_force, event)
-	end,
+	[defines.events.on_player_created] = on_player_created,
+	[defines.events.on_player_changed_force] = on_player_changed_force,
 	[defines.events.on_player_removed] = function(event)
 		opened_money_UI[event.player_index] = nil
 	end,
@@ -199,17 +206,9 @@ M.events = {
 			opened_money_UI = mod_data.opened_money_UI
 		end
 	end,
-	[defines.events.on_gui_opened] = function(event)
-		if event.gui_type ~= controller_type then return end
-		pcall(on_gui_opened, event)
-	end,
-	[defines.events.on_gui_closed] = function(event)
-		if event.gui_type ~= controller_type then return end
-		pcall(on_gui_closed, event)
-	end,
-	[defines.events.on_gui_click] = function(event)
-		pcall(on_gui_click, event)
-	end,
+	[defines.events.on_gui_opened] = on_gui_opened,
+	[defines.events.on_gui_closed] = on_gui_closed,
+	[defines.events.on_gui_click] = on_gui_click,
 	[defines.events.on_runtime_mod_setting_changed] = on_runtime_mod_setting_changed
 }
 
