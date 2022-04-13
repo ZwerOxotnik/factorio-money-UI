@@ -11,14 +11,6 @@
 			"presentation": {
 				"reveal": "silent",
 			}
-		},
-		{
-			"label": "Handle sounds",
-			"type": "shell",
-			"problemMatcher": [],
-			"command": "bash",
-			"args": [".scripts/handle_sounds.sh"],
-			"group": "build"
 		}
 	]
 }

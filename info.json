@@ -11,5 +11,12 @@
 		"zk-lib >= 0.10.0",
 		"EasyAPI >= 0.7.0",
 		"(?) diplomacy"
-	]
+	],
+	"package":
+	{ 
+		"scripts":
+		{
+			"zip_mod": "./.scripts/zip_mod.sh"
+		}
+	}
 }
