@@ -44,7 +44,7 @@
   align="right"
 /> -->
 
-Money UI (extension for money-UI)
+Money UI (extension for EasyAPI)
 --------------------------------
 
 Adds new UI into player's inventory to show money.
