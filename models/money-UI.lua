@@ -8,10 +8,10 @@ local mod_data
 
 --- {[player index] = {GuiElement, GuiElement, force index}}
 ---@class opened_money_UI
----@type table<number, table>
+---@type table<integer, table>
 ---@field [1] GuiElement #player_balance
 ---@field [2] GuiElement #force_balance
----@field [3] number #Force index
+---@field [3] integer #Force index
 local opened_money_UI
 --#endregion
 
@@ -26,6 +26,7 @@ local controller_type = defines.gui_type.controller
 
 --#region Settings
 local update_tick = settings.global["MUI_update-tick"].value
+local show_player_money = settings.global["MUI_show_player_money"].value
 --#endregion
 
 
@@ -43,9 +44,9 @@ local function create_relative_gui(player)
 	button.style.size = 48
 	local main_table = frame.add{type = "table", name = "table", column_count = 2}
 	main_table.style.vertical_spacing = 0
-	main_table.add{type = "label", style = "money_title", caption = {'', {"money-UI.player-balance"}, {"colon"}, " "}}
-	main_table.add{type = "label", name = "player_balance", style = "money_label"}
-	main_table.add{type = "label", style = "money_title", caption = {'', {"money-UI.team-balance"}, {"colon"}, " "}}
+	main_table.add{type = "label", name = "player_money_label", style = "money_title", caption = {'', {"money-UI.player-balance"}, {"colon"}, " "}}.visible = show_player_money
+	main_table.add{type = "label", name = "player_balance", style = "money_label"}.visible = show_player_money
+	main_table.add{type = "label", name = "force_money_label", style = "money_title", caption = {'', {"money-UI.team-balance"}, {"colon"}, " "}}
 	main_table.add{type = "label", name = "force_balance", style = "money_label"}
 end
 
@@ -118,26 +119,52 @@ local function on_gui_click(event)
 end
 
 local function check_GUIs()
-	if #opened_money_UI == 0 then return end
+	if next(opened_money_UI) == nil then return end
 
 	local forces_money = call("EasyAPI", "get_forces_money")
 	local players_money = call("EasyAPI", "get_online_players_money")
-
 	for player_index, data in pairs(opened_money_UI) do
 		data[1].caption = tostring(players_money[player_index] or "NaN")
 		data[2].caption = tostring(forces_money[data[3]] or "NaN") -- TODO: optimize
 	end
 end
 
-local function on_runtime_mod_setting_changed(event)
-	if event.setting ~= "MUI_update-tick" then return end
+local function short_check_GUIs()
+	if next(opened_money_UI) == nil then return end
 
-	local value = settings.global["MUI_update-tick"].value
-	script.on_nth_tick(update_tick, nil)
-	M.on_nth_tick[update_tick] = nil
-	update_tick = value
-	script.on_nth_tick(value, check_GUIs)
-	M.on_nth_tick[update_tick] = check_GUIs
+	local forces_money = call("EasyAPI", "get_forces_money")
+	for _, data in pairs(opened_money_UI) do
+		data[2].caption = tostring(forces_money[data[3]] or "NaN") -- TODO: optimize
+	end
+end
+
+local mod_settings = {
+	["MUI_show_player_money"] = function(value)
+		show_player_money = value
+		local f = (value and check_GUIs) or short_check_GUIs
+		script.on_nth_tick(update_tick, f)
+		for _, player in pairs(game.players) do
+			if player.valid then
+				local elem = player.gui.relative.money_frame.content.table
+				elem.player_money_label.visible = value
+				elem.player_balance.visible = value
+			end
+		end
+	end,
+	["MUI_update-tick"] = function(value)
+		script.on_nth_tick(update_tick, nil)
+		M.on_nth_tick[update_tick] = nil
+		update_tick = value
+		local f = (show_player_money and check_GUIs) or short_check_GUIs
+		script.on_nth_tick(value, f)
+		M.on_nth_tick[update_tick] = f
+	end
+}
+local function on_runtime_mod_setting_changed(event)
+	local setting_name = event.setting
+	local f = mod_settings[setting_name]
+	if f == nil then return end
+	f(settings.global[setting_name].value)
 end
 
 --#endregion
@@ -155,7 +182,7 @@ end
 local function update_global_data()
 	global.MUI = global.MUI or {}
 	mod_data = global.MUI
-	mod_data.opened_money_UI = mod_data.opened_money_UI or {}
+	mod_data.opened_money_UI = {}
 
 	link_data()
 end
@@ -178,12 +205,22 @@ end
 M.on_configuration_changed = function(event)
 	update_global_data()
 
-	-- local mod_changes = event.mod_changes["money-UI"]
-	-- if not (mod_changes and mod_changes.old_version) then return end
+	local mod_changes = event.mod_changes["money-UI"]
+	if not (mod_changes and mod_changes.old_version) then return end
 
-	-- local version = tonumber(string.gmatch(mod_changes.old_version, "%d+.%d+")())
-	-- if version < 0.8 then
-	-- end
+	local old_version = tonumber(string.gmatch(mod_changes.old_version, "%d+.%d+")())
+
+	if old_version < 0.9 then
+		for _, player in pairs(game.players) do
+			if player.valid then
+				local money_frame = player.gui.relative.money_frame
+				if money_frame and money_frame.valid then
+					money_frame.destroy()
+				end
+				create_relative_gui(player)
+			end
+		end
+	end
 end
 M.on_load = link_data
 M.add_remote_interface = add_remote_interface
@@ -213,7 +250,7 @@ M.events = {
 }
 
 M.on_nth_tick = {
-	[update_tick] = check_GUIs
+	[update_tick] = (show_player_money and check_GUIs) or short_check_GUIs
 }
 
 return M
