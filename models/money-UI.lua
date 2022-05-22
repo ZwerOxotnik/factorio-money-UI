@@ -1,5 +1,7 @@
----@class FreeMarket : module
-local M = {}
+---@class MUI : module
+local M = {
+	on_nth_tick = {}
+}
 
 
 --#region Global data
@@ -22,16 +24,15 @@ local opened_money_UI_refs
 
 
 --#region Constants
+local handle_tick_events
 local money_anchor = {gui = defines.relative_gui_type.controller_gui, position = defines.relative_gui_position.top}
 local controller_type = defines.gui_type.controller
-local random = math.random
 local tremove = table.remove
 local call = remote.call
 local setmetatable = setmetatable
 local tostring = tostring
 local int_to_string_mt = {
 	__index = function(self, k)
-		if k == nil then return "NaN" end
 		v = tostring(k)
 		self[k] = v
 		return v
@@ -118,6 +119,9 @@ local function on_gui_opened(event)
 	}
 	opened_money_UI[#opened_money_UI+1] = data
 	opened_money_UI_refs[player_index] = data
+	if #opened_money_UI == 1 then
+		handle_tick_events()
+	end
 end
 
 local function on_gui_closed(event)
@@ -132,6 +136,9 @@ local function on_gui_closed(event)
 	for i=#opened_money_UI, 1, -1 do
 		if opened_money_UI[i] == data then
 			tremove(opened_money_UI, i)
+			if #opened_money_UI == 0 then
+				handle_tick_events()
+			end
 			return
 		end
 	end
@@ -145,53 +152,58 @@ local function on_gui_click(event)
 	local table_elem = element.parent.table
 	local player_index = event.player_index
 	local player_money = call("EasyAPI", "get_online_player_money", player_index)
-	if player_money then
-		table_elem.player_balance.caption = tostring(player_money)
-	else
-		table_elem.player_balance.caption = "NaN"
-	end
+	local elem = table_elem.player_balance
+	elem.caption = (player_money and tostring(player_money)) or "NaN"
 	local player = game.get_player(player_index)
 	local force_money = call("EasyAPI", "get_force_money", player.force.index)
-	if force_money then
-		table_elem.force_balance.caption = tostring(force_money)
-	else
-		table_elem.force_balance.caption = "NaN"
-	end
+	elem = table_elem.force_balance
+	elem.caption = (force_money and tostring(force_money)) or "NaN"
 end
 
 local function check_GUIs()
-	if #opened_money_UI == 0 then return end
-
 	local forces_money = call("EasyAPI", "get_forces_money")
 	local players_money = call("EasyAPI", "get_online_players_money")
 	for i=1, #opened_money_UI do
 		local data = opened_money_UI[i]
-		data[1].caption = int_to_string_data[forces_money[data[2]]]
-		data[3].caption = int_to_string_data[players_money[data[4]]]
-	end
-	if random() > 0.8 then
-		int_to_string_data = setmetatable({}, int_to_string_mt)
+		local money = forces_money[data[2]]
+		data[1].caption = (money and int_to_string_data[money]) or "NaN"
+		money = players_money[data[4]]
+		data[3].caption = (money and int_to_string_data[money]) or "NaN"
 	end
 end
 
 local function short_check_GUIs()
-	if #opened_money_UI == 0 then return end
-
 	local forces_money = call("EasyAPI", "get_forces_money")
 	for i=1, #opened_money_UI do
 		local data = opened_money_UI[i]
-		data[1].caption = int_to_string_data[forces_money[data[2]]]
+		local money = forces_money[data[2]]
+		data[1].caption = (money and int_to_string_data[money]) or "NaN"
 	end
-	if random() > 0.8 then
-		int_to_string_data = setmetatable({}, int_to_string_mt)
+end
+
+local function reset_temp_data()
+	int_to_string_data = setmetatable({}, int_to_string_mt)
+end
+
+handle_tick_events = function()
+	if #opened_money_UI == 0 then
+		script.on_nth_tick(update_tick * 30, nil)
+		script.on_nth_tick(update_tick, nil)
+		M.on_nth_tick[update_tick * 30] = nil
+		M.on_nth_tick[update_tick] = nil
+		return
 	end
+	script.on_nth_tick(update_tick * 30, reset_temp_data)
+	M.on_nth_tick[update_tick * 30] = reset_temp_data
+	local f = (is_player_money_visible and check_GUIs) or short_check_GUIs
+	script.on_nth_tick(update_tick, f)
+	M.on_nth_tick[update_tick] = f
 end
 
 local mod_settings = {
 	["MUI_show_player_money"] = function(value)
 		is_player_money_visible = value
-		local f = (value and check_GUIs) or short_check_GUIs
-		script.on_nth_tick(update_tick, f)
+		handle_tick_events()
 		for _, player in pairs(game.players) do
 			if player.valid then
 				local elem = player.gui.relative.money_frame.content.table
@@ -201,12 +213,12 @@ local mod_settings = {
 		end
 	end,
 	["MUI_update-tick"] = function(value)
+		script.on_nth_tick(update_tick * 30, nil)
+		M.on_nth_tick[update_tick * 30] = nil
 		script.on_nth_tick(update_tick, nil)
 		M.on_nth_tick[update_tick] = nil
 		update_tick = value
-		local f = (is_player_money_visible and check_GUIs) or short_check_GUIs
-		script.on_nth_tick(value, f)
-		M.on_nth_tick[update_tick] = f
+		handle_tick_events()
 	end
 }
 local function on_runtime_mod_setting_changed(event)
@@ -245,6 +257,7 @@ end
 
 M.on_init = function()
 	update_global_data()
+	handle_tick_events()
 
 	for _, player in pairs(game.players) do
 		if player.valid then
@@ -254,6 +267,7 @@ M.on_init = function()
 end
 M.on_configuration_changed = function(event)
 	update_global_data()
+	handle_tick_events()
 
 	local mod_changes = event.mod_changes["money-UI"]
 	if not (mod_changes and mod_changes.old_version) then return end
@@ -272,7 +286,10 @@ M.on_configuration_changed = function(event)
 		end
 	end
 end
-M.on_load = link_data
+M.on_load = function()
+	link_data()
+	handle_tick_events()
+end
 M.add_remote_interface = add_remote_interface
 
 --#endregion
@@ -294,10 +311,6 @@ M.events = {
 	[defines.events.on_gui_closed] = on_gui_closed,
 	[defines.events.on_gui_click] = on_gui_click,
 	[defines.events.on_runtime_mod_setting_changed] = on_runtime_mod_setting_changed
-}
-
-M.on_nth_tick = {
-	[update_tick] = (is_player_money_visible and check_GUIs) or short_check_GUIs
 }
 
 return M
