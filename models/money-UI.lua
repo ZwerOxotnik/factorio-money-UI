@@ -31,14 +31,6 @@ local tremove = table.remove
 local call = remote.call
 local setmetatable = setmetatable
 local tostring = tostring
-local int_to_string_mt = {
-	__index = function(self, k)
-		v = tostring(k)
-		self[k] = v
-		return v
-	end
-}
-local int_to_string_data = setmetatable({}, int_to_string_mt)
 --#endregion
 
 
@@ -165,10 +157,8 @@ local function check_GUIs()
 	local players_money = call("EasyAPI", "get_online_players_money")
 	for i=1, #opened_money_UI do
 		local data = opened_money_UI[i]
-		local money = forces_money[data[2]]
-		data[1].caption = (money and int_to_string_data[money]) or "NaN"
-		money = players_money[data[4]]
-		data[3].caption = (money and int_to_string_data[money]) or "NaN"
+		data[1].caption = tostring(forces_money[data[2]] or "NaN")
+		data[3].caption = tostring(players_money[data[4]] or "NaN")
 	end
 end
 
@@ -176,25 +166,17 @@ local function short_check_GUIs()
 	local forces_money = call("EasyAPI", "get_forces_money")
 	for i=1, #opened_money_UI do
 		local data = opened_money_UI[i]
-		local money = forces_money[data[2]]
-		data[1].caption = (money and int_to_string_data[money]) or "NaN"
+		data[1].caption = tostring(forces_money[data[2]] or "NaN")
 	end
 end
 
-local function reset_temp_data()
-	int_to_string_data = setmetatable({}, int_to_string_mt)
-end
 
 handle_tick_events = function()
 	if #opened_money_UI == 0 then
-		script.on_nth_tick(update_tick * 30, nil)
 		script.on_nth_tick(update_tick, nil)
-		M.on_nth_tick[update_tick * 30] = nil
 		M.on_nth_tick[update_tick] = nil
 		return
 	end
-	script.on_nth_tick(update_tick * 30, reset_temp_data)
-	M.on_nth_tick[update_tick * 30] = reset_temp_data
 	local f = (is_player_money_visible and check_GUIs) or short_check_GUIs
 	script.on_nth_tick(update_tick, f)
 	M.on_nth_tick[update_tick] = f
@@ -213,8 +195,6 @@ local mod_settings = {
 		end
 	end,
 	["MUI_update-tick"] = function(value)
-		script.on_nth_tick(update_tick * 30, nil)
-		M.on_nth_tick[update_tick * 30] = nil
 		script.on_nth_tick(update_tick, nil)
 		M.on_nth_tick[update_tick] = nil
 		update_tick = value
