@@ -1,6 +1,6 @@
 {
 	"name": "money-UI",
-	"version": "0.9.2",
+	"version": "0.9.4",
 	"factorio_version": "1.1",
 	"title": "Money UI (extension for EasyAPI)",
 	"author": "ZwerOxotnik",
@@ -14,7 +14,7 @@
 		"(?) diplomacy"
 	],
 	"package":
-	{ 
+	{
 		"scripts":
 		{
 			"zip_mod": "./.scripts/zip_mod.sh"

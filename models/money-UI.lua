@@ -81,6 +81,7 @@ function remove_player_data_event(event)
 	for i=#opened_money_UI, 1, -1 do
 		if opened_money_UI[i] == data then
 			tremove(opened_money_UI, i)
+			handle_tick_events()
 			return
 		end
 	end
