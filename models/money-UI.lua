@@ -235,15 +235,15 @@ end
 --#region Pre-game stage
 
 local function link_data()
-	mod_data = global.MUI
+	mod_data = storage.MUI
 	if mod_data == nil then return end
 	opened_money_UI = mod_data.opened_money_UI
 	opened_money_UI_refs = mod_data.opened_money_UI_refs
 end
 
 local function update_global_data()
-	global.MUI = global.MUI or {}
-	mod_data = global.MUI
+	storage.MUI = storage.MUI or {}
+	mod_data = storage.MUI
 	mod_data.opened_money_UI = {}
 	mod_data.opened_money_UI_refs = {}
 
